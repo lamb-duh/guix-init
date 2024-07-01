@@ -1,7 +1,7 @@
 # guix-init
-This is a guix initialization speedrun. From standard guix iso with wired internet, to pure GNU guix workstation, onward to dirty wifi enabled nonguix lisp based machine. The whole setup takes about 1 hour of effort, and 3-5 hours of download
+This is a guix full system install speedrun. From standard guix iso, install pure GNU guix workstation with libre kernel which allows wired internet only, onward to non free full kernel (forgive me Stallman), wifi enabled nonguix lisp based machine. The whole setup takes about 1 hour of effort, and 3-5 hours of download. Support free software, set yourself free!
 
-#BONUS: the slickest stumpWM config ever crafted. Ultra fast keybindings in a spacemacs style, all in one file, works out of the box.
+#BONUS: the slickest stumpWM config ever crafted. Ultra fast keybinding driven window management in a spacemacs style, all in one file, works out of the box.
 
 # boot from USB
        reboot with standard guixSD iso flashed to stick
@@ -20,4 +20,4 @@ This is a guix initialization speedrun. From standard guix iso with wired intern
        cd ~
        git config --global http.sslVerify false
        git clone "https://github.com/lamb-duh/guix-init"
-       #follow instructions.txt in /guix
+       #follow instructions.txt

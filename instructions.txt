@@ -1,125 +1,165 @@
-#set UEFI to boot from USB
-       at boot: [fn][F12...]
-       reset to defaults
-       reboot with standared guixSD image on stick
-       at boot: [fn][F12...]
-       choose usb
-       at blue screen: [ctl][alt][fn][F3]
 
-#setup eth connection
-       ifconfig -a
-       ifconfig eno1 up
-       dhclient -v eno1
-       ping -c 3 gnu.org
+#grok your drives
+       lsblk
 
-# clone init files (shell)
-       guix install git
-       cd ~
-       git config --global http.sslVerify false
-       git clone "https://github.com/Saint-Even/guix-init.git"
-       #follow these instructions.txt
+NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
+
+#efi and swap
+nvme0n1     259:0    0 465.8G  0 disk 
+├─nvme0n1p1 259:1    0   512M  0 part 
+└─nvme0n1p2 259:2    0 465.3G  0 part 
+
+#root and home
+sda           8:0    0 167.7G  0 disk 
+├─sda1        8:1    0    50M  0 part 
+├─sda2        8:2    0 167.1G  0 part 
+└─sda3        8:3    0   509M  0 part 
+
+#bulk
+sdc           8:32   0   1.8T  0 disk 
+└─sdc1        8:33   0   1.8T  0 part 
+
+#backup
+sdd           8:48   0   1.8T  0 disk 
+└─sdd1        8:49   0   1.8T  0 part 
+
+
+	#assign efi(boot) and swap to fastest, nvme
+	EnS="nvme0n1"
+	#assign root and home to next fastest, ssd
+	RnH="sda"
+	#assign any bulk/backup drives, raid
+	B1="sdc"
+	B2="sdd"
+
 
 #write partitions
-       lsblk
-       parted /dev/nvme0n1
+       parted /dev/${EnS}
        mklabel gpt
        #EFI
        mkpart "efi-partition" fat32 1MiB 500MiB
        #SWAP
-       mkpart "swap-partition" linux-swap 500MiB 4.5GiB
+       mkpart "swap-partition" linux-swap 500MiB 100%
+       quit
+
+       parted /dev/${RnH}
+       mklabel gpt
        #ROOT
-       mkpart "root-partition" ext4 4.5GiB 50.5GiB
+       mkpart "root-partition" ext4 1MiB 70GiB
        #HOME
-       mkpart "home-partition" ext4 50.5GiB 100%
+       mkpart "home-partition" ext4 70GiB 100%
+       quit
+
+       parted /dev/${B1}
+       mklabel gpt
+       mkpart "bulk1-partition" ext4 1MiB 100%
+       quit
+
+       parted /dev/${B2}
+       mklabel gpt
+       mkpart "bulk2-partition" ext4 1MiB 100%
        quit
 
 #write filesystems
        lsblk -f
        #EFI
-       #already done?OR mkfs -t fat32 /dev/nvme0n1p1
+       #already done?OR mkfs -t fat32 /dev/${EnS}p1
        #SWAP
-       mkswap /dev/nvme0n1p2
+       mkswap /dev/${EnS}p2
+
        #ROOT
-       cryptsetup luksFormat /dev/nvme0n1p3 #...follow prompts
-       cryptsetup open /dev/nvme0n1p3 root-luks
+       cryptsetup luksFormat /dev/${RnH}p1 #...follow prompts
+       cryptsetup open /dev/${RnH}p1 root-luks
        mkfs -t ext4 -L root-partition /dev/mapper/root-luks
        #HOME
-       cryptsetup luksFormat /dev/nvme0n1p4 #...follow prompts
-       cryptsetup open /dev/nvme0n1p4 home-luks
+       cryptsetup luksFormat /dev/${RnH}p2 #...follow prompts
+       cryptsetup open /dev/${RnH}p2 home-luks
        mkfs -t ext4 -L home-partition /dev/mapper/home-luks
+
+       #BULK
+       mkfs -t ext4 -L bulk1-partition /dev/${B1}
+       mkfs -t ext4 -L bulk2-partition /dev/${B2}
 
 #mount disks
        #ROOT
        mount /dev/mapper/root-luks /mnt
        #EFI
        mkdir -p /mnt/boot/efi
-       mount /dev/nvme0n1p1 /mnt/boot/efi
+       mount /dev/${EnS}p1 /mnt/boot/efi
        #SWAP
-       swapon /dev/nvme0n1p2
+       swapon /dev/${EnS}p2
        #HOME
        mkdir /mnt/home
        mount /dev/mapper/home-luks /mnt/home
+       #BULK
+       mkdir /mnt/bulk1 
+       mount /dev/${B1} /mnt/bulk1
+       mkdir /mnt/bulk2 
+       mount /dev/${B2} /mnt/bulk2
 
-# set up basic system (shell)
-       cd ~/guix-init/
-       cp basic.scm ~
+# set up basic system
+       cd ~/guix-init/guix
+       cp basic-config.scm ~
        cd ~
-       #make block comment of info to complete basic config
-       echo '#!'
-       echo ";;All devices UUID"
-       lsblk -f >> basic.scm
-       echo ";;time zone"
-       tzselect >> basic.scm
-       echo ";;All locales"
-       locale -a >> basic.scm
-       echo '!#'
-       guix install vim
-       vim basic.scm
 
-# install minimal guix system, pure GNU! (shell)
+       #make block comment of info to complete basic config
+       echo '#!' >> basic-config.scm
+       echo ";;All devices UUID" >> basic-config.scm
+       lsblk -f >> basic-config.scm
+       echo ";;time zone" >> basic-config.scm
+       tzselect >> basic-config.scm
+       echo ";;All locales" >> basic-config.scm
+       locale -a >> basic-config.scm
+       echo '!#' >> basic-config.scm
+
+       #complete info sections from block comment
+       guix install vim
+       vim basic-config.scm
+
+# install minimal guix system, pure GNU!
        mkdir -p /mnt/etc
-       cp basic.scm /mnt/etc/config.scm
+       cp basic-config.scm /mnt/etc/config.scm
        herd start cow-store /mnt
        guix system init /mnt/etc/config.scm /mnt
        reboot
 
 # first login
-  #change passwords
-  sudo passwd #root
-  passwd #user
-  #save file used to boot
-  mkdir -p ~/.config/guix
-  mv /etc/config.scm ~/.config/guix/basic-config.scm
+       #change passwords
+       sudo passwd #root
+       passwd #user
+       #save file used to boot
+       mkdir -p ~/.config/guix
+       mv /etc/config.scm ~/.config/guix/basic-config.scm
 
-# clone init files (shell)
+# clone init files
        guix install git
        guix install vim
        cd ~
-       git clone "https://github.com/saint-even/guix-init.git"
-       cd guix-init/
+       git clone "https://github.com/lamb-duh/guix-init"
+       cd guix-init/guix
 
-# prep config (shell)
+# prep config
        cat full-config.scm > config.scm
        echo '#!' >> config.scm
-       echo "BASIC.SCM" >> config.scm
+       echo "BASIC-CONFIG.SCM" >> config.scm
        cat ~/.config/guix/basic-config.scm >> config.scm
        echo '!#' >> config.scm
        vim config.scm # complete fields 
 
-# move files into position (shell)
+# move files into position
        cp channels.scm ~/.config/guix/channels.scm
        mv config.scm ~/.config/guix/config.scm
 
-#instantiate system (shell)
-  guix install curl
-  key=$(curl https://substitutes.nonguix.org/signing-key.pub)
-  sudo guix archive --authorize ${key}
-  guix pull
-  hash guix 
-  sudo guix system reconfigure ~/.config/guix/config.scm --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org https://substitutes.nonguix.org'
-  sudo reboot
+#instantiate system
+       guix install curl
+       key=$(curl https://substitutes.nonguix.org/signing-key.pub)
+       sudo guix archive --authorize ${key}
+       guix pull
+       hash guix 
+       sudo guix system reconfigure ~/.config/guix/config.scm --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org https://substitutes.nonguix.org'
+       sudo reboot
 
 #modifying system
-  edit config
-  guix pull
-  sudo guix system reconfigure ~/.config/guix/config.scm 
+       edit config
+       guix pull
+       sudo guix system reconfigure ~/.config/guix/config.scm 
