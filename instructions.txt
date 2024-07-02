@@ -1,0 +1,125 @@
+#set UEFI to boot from USB
+       at boot: [fn][F12...]
+       reset to defaults
+       reboot with standared guixSD image on stick
+       at boot: [fn][F12...]
+       choose usb
+       at blue screen: [ctl][alt][fn][F3]
+
+#setup eth connection
+       ifconfig -a
+       ifconfig eno1 up
+       dhclient -v eno1
+       ping -c 3 gnu.org
+
+# clone init files (shell)
+       guix install git
+       cd ~
+       git config --global http.sslVerify false
+       git clone "https://github.com/Saint-Even/guix-init.git"
+       #follow these instructions.txt
+
+#write partitions
+       lsblk
+       parted /dev/nvme0n1
+       mklabel gpt
+       #EFI
+       mkpart "efi-partition" fat32 1MiB 500MiB
+       #SWAP
+       mkpart "swap-partition" linux-swap 500MiB 4.5GiB
+       #ROOT
+       mkpart "root-partition" ext4 4.5GiB 50.5GiB
+       #HOME
+       mkpart "home-partition" ext4 50.5GiB 100%
+       quit
+
+#write filesystems
+       lsblk -f
+       #EFI
+       #already done?OR mkfs -t fat32 /dev/nvme0n1p1
+       #SWAP
+       mkswap /dev/nvme0n1p2
+       #ROOT
+       cryptsetup luksFormat /dev/nvme0n1p3 #...follow prompts
+       cryptsetup open /dev/nvme0n1p3 root-luks
+       mkfs -t ext4 -L root-partition /dev/mapper/root-luks
+       #HOME
+       cryptsetup luksFormat /dev/nvme0n1p4 #...follow prompts
+       cryptsetup open /dev/nvme0n1p4 home-luks
+       mkfs -t ext4 -L home-partition /dev/mapper/home-luks
+
+#mount disks
+       #ROOT
+       mount /dev/mapper/root-luks /mnt
+       #EFI
+       mkdir -p /mnt/boot/efi
+       mount /dev/nvme0n1p1 /mnt/boot/efi
+       #SWAP
+       swapon /dev/nvme0n1p2
+       #HOME
+       mkdir /mnt/home
+       mount /dev/mapper/home-luks /mnt/home
+
+# set up basic system (shell)
+       cd ~/guix-init/
+       cp basic.scm ~
+       cd ~
+       #make block comment of info to complete basic config
+       echo '#!'
+       echo ";;All devices UUID"
+       lsblk -f >> basic.scm
+       echo ";;time zone"
+       tzselect >> basic.scm
+       echo ";;All locales"
+       locale -a >> basic.scm
+       echo '!#'
+       guix install vim
+       vim basic.scm
+
+# install minimal guix system, pure GNU! (shell)
+       mkdir -p /mnt/etc
+       cp basic.scm /mnt/etc/config.scm
+       herd start cow-store /mnt
+       guix system init /mnt/etc/config.scm /mnt
+       reboot
+
+# first login
+  #change passwords
+  sudo passwd #root
+  passwd #user
+  #save file used to boot
+  mkdir -p ~/.config/guix
+  mv /etc/config.scm ~/.config/guix/basic-config.scm
+
+# clone init files (shell)
+       guix install git
+       guix install vim
+       cd ~
+       git clone "https://github.com/saint-even/guix-init.git"
+       cd guix-init/
+
+# prep config (shell)
+       cat full-config.scm > config.scm
+       echo '#!' >> config.scm
+       echo "BASIC.SCM" >> config.scm
+       cat ~/.config/guix/basic-config.scm >> config.scm
+       echo '!#' >> config.scm
+       vim config.scm # complete fields 
+
+# move files into position (shell)
+       cp channels.scm ~/.config/guix/channels.scm
+       mv config.scm ~/.config/guix/config.scm
+
+#instantiate system (shell)
+  guix install curl
+  key=$(curl https://substitutes.nonguix.org/signing-key.pub)
+  sudo guix archive --authorize ${key}
+  guix pull
+  hash guix 
+  sudo guix system reconfigure ~/.config/guix/config.scm --substitute-urls='https://ci.guix.gnu.org https://bordeaux.guix.gnu.org https://substitutes.nonguix.org'
+  sudo reboot
+
+#modifying system
+  edit config
+  guix pull
+  sudo guix system reconfigure ~/.config/guix/config.scm 

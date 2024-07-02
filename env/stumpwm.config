@@ -1,0 +1,1287 @@
+;;; -*-  mode: lisp; -*-
+
+;single page stumpwmrc, with sensible defaults that just works out of the box. Move it to ~/.config/stumpwm/config
+;git clone git@github.com:stumpwm/stumpwm-contrib.git ~/.config/stumpwm/modules
+
+;thanks to these hackers for the hacks
+;https://config.phundrak.com/stumpwm
+;https://github.com/jamesmccabe/stumpwm-demo-config
+;https://github.com/Gavinok/stump-conf/blob/main/config
+
+;;============
+; TOC (search to jump)
+; grep '^;=' to generate
+;;============
+
+;;============
+;=debugging
+;;============
+
+(setq *debug-level* 5); 5, 10
+(redirect-all-output (data-dir-file "stump-debug-output" "txt"))
+
+;;============
+;=initialize
+;;============
+
+
+;==quicklisp
+
+
+(let ((quicklisp-init (merge-pathnames "quicklisp/setup.lisp"
+                                       (user-homedir-pathname))))
+  (when (probe-file quicklisp-init)
+    (load quicklisp-init)))
+
+(ql:quickload :cl-ppcre); for bluetooth
+(ql:quickload :stumpwm-prescient) ; for autocompletion
+(ql:quickload :clx-truetype) ; for font rendering. and make-instance
+;errors on sb-rotate-byte
+;(ql:quickload :dbus) ; for network management
+
+;errors
+;(ql:quickload :slynk) ; for SLY server
+
+
+;==stump
+(in-package :stumpwm)
+(setf *default-package* :stumpwm) ; to avoid prefixing "stumpwm:"
+
+
+;==load stumpwm-contrib modules
+
+;==path to modules
+(init-load-path #p"~/.config/stumpwm/modules/")
+
+;==modules
+(load-module "beckon") ; bring mouse to current window
+(load-module "binwarp") ; control mouse from keyboard
+(load-module "end-session") ; gracefull exits when ending user session
+(load-module "globalwindows") ; nav windows from all workspaces
+(load-module "swm-gaps") ; gaps around frames
+(load-module "stump-backlight") ; native management of backlight
+(load-module "winner-mode") ; for undo redo functions
+(load-module "urgentwindows") ; get urgent windows
+(load-module "battery-portable") ; for modeline display
+(load-module "cpu") ; for modeline display
+(load-module "mem") ; for modeline display
+(load-module "swm-ssh") ; for remote access lists
+(load-module "ttf-fonts") ; font rendering
+
+;errors on libfixposix.so
+;(load-module "stump-nm") ; for network manager
+
+;(load-module "mpd") ; interact with mpd
+;(mpd:mpd-connect) ; connect to use from stumpwm
+
+;==load custom files
+;(load "~/.config/stumpwm/file.lisp")
+;(when *initializing* (function-call))
+
+(setf *startup-message* "StumpWM is initialized!
+Press super-space for Happy Hacking!")
+
+;;============
+;=fonts
+;;============
+
+;default font works
+(set-font "-xos4-terminus-medium-r-normal--14-140-72-72-c-80-iso8859-15")
+
+;make path to guix fonts available
+;/usr/share/fonts must also be sym linked and fc-cache -rv
+(pushnew (concatenate 'string (sb-ext:posix-getenv "HOME")
+                              "/.guixprofile/share/fonts/")
+	 xft:*font-dirs* :test #'string=)
+
+;index fonts
+(xft:cache-fonts)
+
+(print "MARK")
+
+(set-font (list
+	   (make-instance 'xft:font
+			  :family "DejaVu Sans Mono"
+			  :subfamily "Bold"
+			  :size 12)
+	   (make-instance 'xft:font
+			  :family "FontAwesome"
+			  :subfamily "Regular"
+			  :size 12)))
+
+
+;;============
+;=colours
+;;============
+
+;==palettes
+
+;===nord
+(defvar nord0 "#2e3440")
+(defvar nord1 "#3b4252")
+(defvar nord2 "#434c5e")
+(defvar nord3 "#4c566a")
+(defvar nord4 "#d8dee9")
+(defvar nord5 "#e5e9f0")
+(defvar nord6 "#eceff4")
+(defvar nord7 "#8fbcbb")
+(defvar nord8 "#88c0d0")
+(defvar nord9 "#81a1c1")
+(defvar nord10 "#5e81ac")
+(defvar nord11 "#bf616a")
+(defvar nord12 "#d08770")
+(defvar nord13 "#ebcb8b")
+(defvar nord14 "#a3be8c")
+(defvar nord15 "#b48ead")
+
+;===solarized
+(defvar base03 "#002b36");dark bg
+(defvar base02 "#073642");dark bg highlights
+(defvar base01 "#586e75");dark comments/secondary content
+(defvar base1 "#93a1a1");dark optional emphasized content
+(defvar base0 "#839496");dark bodytext/default code/primary content
+
+(defvar base3 "#fdf6e3");light bg
+(defvar base2 "#eee8d5");light bg highlights
+(defvar base1 "#93a1a1");light comments/secondary content
+(defvar base01 "#586e75");light optional emphasized content
+(defvar base00 "#657b83");light bodytext/default code/primary content
+
+(defvar yellow "#b58900")
+(defvar orange "#cb4b16")
+(defvar red "#dc322f")
+(defvar magenta "#d33682")
+(defvar violet "#6c71c4")
+(defvar blue "#268bd2")
+(defvar cyan "#2aa198")
+(defvar green "#859900")
+
+;testing
+(defvar WHITE "#ffffff")
+
+;==selections
+;last selection is in effect
+; can set up to ten, 8 default, 2 extra
+
+;nord...
+(setq *colors*
+      `(,nord1   ;^0 ;
+        ,nord11  ;^1 ;
+        ,nord14  ;^2 ;
+        ,nord13  ;^3 ;
+        ,nord10  ;^4 ;
+        ,nord14  ;^5 ;
+        ,nord8   ;^6 ;
+        ,nord5)) ;^7 ;
+
+;solarized light
+(setq *colors*
+      `(
+	,base3	;^0 ;bg
+        ,base2	;^1 ;bg highlights
+        ,base1	;^2 ;comments/secondary
+        ,base01	;^3 ;optional emphasized
+        ,base00	;^4 ;body text
+        ,blue	;^5 ;accent 1
+        ,cyan	;^6 ;accent 2
+        ,green	;^7 ;accent 3
+	))
+
+;solarized dark
+(setq *colors*
+      `(
+	,base03	;^0 ;bg
+        ,base02	;^1 ;bg highlights
+        ,base01	;^2 ;comments/secondary
+        ,base1	;^3 ;optional emphasized
+        ,base0	;^4 ;body text
+        ,blue	;^5 ;accent 1
+        ,cyan	;^6 ;accent 2
+        ,green	;^7 ;accent 3
+	,WHITE
+	))
+
+;==assignment
+
+(when *initializing*
+  (update-color-map (current-screen)))
+
+(set-fg-color (nth 4 *colors*)); popup text
+(set-bg-color (nth 0 *colors*)) ; popup bg
+(set-border-color (nth 3 *colors*)) ; popup border
+
+(set-focus-color         (nth 6 *colors*))
+(set-unfocus-color       (nth 2 *colors*))
+(set-float-focus-color   (nth 6 *colors*))
+(set-float-unfocus-color (nth 2 *colors*))
+
+(setf *text-color* (nth 8 *colors*)); ...
+
+(setf *mode-line-foreground-color* (nth 6 *colors*)); modeline text
+(setf *mode-line-background-color* (nth 1 *colors*)) ; modeline bg
+(setf *my-modeline-text-1* (nth 6 *colors*))
+(setf *my-modeline-text-2* (nth 1 *colors*))
+(setf *mode-line-border-color* (nth 5 *colors*))
+
+(setf *key-seq-color* "^3") ;format:"^0", prepended to key map displays
+
+
+
+
+
+
+
+;;============
+;=commands
+;;============
+
+;==helper-functions
+
+;send history to winner mode
+(add-hook *post-command-hook* (lambda (command)
+                                (when (member command winner-mode:*default-commands*)
+                                  (winner-mode:dump-group-to-file))))
+
+(defun file-readable-p (file)
+  "Return t, if FILE is available for reading."
+  (handler-case
+      (with-open-file (f file) (read-line f))
+    (stream-error () nil)))
+
+(defun executable-p (name)
+  "Tell if given executable is present in PATH."
+  (let ((which-out (string-trim '(#\Space #\Linefeed)
+		(run-shell-command (concat "which " name) t))))
+		(unless (string-equal "" which-out) which-out)))
+
+;==applications
+; prompt the user for an interactive command
+(defcommand colon-command (&optional (initial "")) (:rest)
+  (let ((cmd (read-one-line (current-screen) ": " :initial-input initial)))
+    (when cmd
+      (eval-command cmd t))))
+
+(defcommand stump-screenshot () ()
+  (run-shell-command "exec scrot") ; ... select a program
+  (sleep 0.5)
+  (message "Screenshot taken!"))
+
+(defcommand term (&optional program) () ;
+  "Invoke a terminal, possibly with a @arg{program}."
+  (sb-thread:make-thread
+   (lambda ()
+     (run-shell-command (if program
+                            (format nil "kitty ~A" program)
+                            "kitty")))))
+(defcommand ror-browser() ()
+  "Run or raise nyxt."
+  (sb-thread:make-thread (lambda () (run-or-raise "nyxt" '(:class "nyxt") t nil))))
+
+;===emacs integration
+; override default emacs command
+(defcommand emacs-client () ()
+  "Start emacs if emacsclient is not running and focus emacs if it is
+running in the current group"
+  (run-or-raise "emacsclient -c -a 'emacs'" '(:class "Emacs")))
+
+;; Treat emacs splits like Xorg windows
+(defun is-emacs-p (win)
+  "nil if the WIN"
+  (when win
+    (string-equal (window-class win) "Emacs")))
+
+(defmacro exec-el (expression)
+  "execute emacs lisp do not collect it's output"
+  `(eval-string-as-el (write-to-string ',expression)))
+
+(defun eval-string-as-el (elisp &optional collect-output-p)
+  "evaluate a string as emacs lisp"
+  (let ((result (run-shell-command
+                 (format nil "timeout --signal=9 1m emacsclient --eval \"~a\""
+                         elisp)
+                 collect-output-p)))
+    (handler-case (read-from-string result)
+      ;; Pass back a string when we can't read from the string
+      (error () result))))
+
+(defmacro eval-el (expression)
+  "evaluate emacs lisp and collect it's output"
+  `(eval-string-as-el ,(write-to-string expression :case :downcase) t))
+
+(declaim (ftype
+          (function (string) (values string &optional))
+          emacs-winmove))
+
+(defun emacs-winmove (direction)
+  "executes the emacs function winmove-DIRECTION where DIRECTION is a string"
+  (eval-string-as-el (concat "(windmove-" direction ")") t))
+
+;==system
+
+;===mouse
+; Moving the mouse for me
+(defmacro with-focus-lost (&body body)
+  "Make sure WIN is on the top level while the body is running and
+restore it's always-on-top state afterwords"
+  `(progn (banish)
+          ,@body
+          (when (current-window)
+            (beckon:beckon))))
+
+;===bluetooth
+(defvar *bluetooth-command* "bluetoothctl"
+  "Base command for interacting with bluetooth.")
+(defun bluetooth-message (&rest message)
+  (message (format nil
+                   "^2Bluetooth:^7 ~{~A~^ ~}"
+                   message)))
+(defun bluetooth-make-command (&rest args)
+  (format nil
+          "~a ~{~A~^ ~}"
+          *bluetooth-command*
+          args))
+(defmacro bluetooth-command (&rest args)
+  `(run-shell-command (bluetooth-make-command ,@args) t))
+(defmacro bluetooth-message-command (&rest args)
+  `(bluetooth-message (bluetooth-command ,@args)))
+(defcommand bluetooth-turn-on () ()
+  "Turn on bluetooth."
+  (bluetooth-message-command "power" "on"))
+(defcommand bluetooth-turn-off () ()
+  "Turn off bluetooth."
+  (bluetooth-message-command "power" "off"))
+(defstruct (bluetooth-device
+             (:constructor
+              make-bluetooth-device (&key (address "")
+                                          (name nil)))
+             (:constructor
+              make-bluetooth-device-from-command
+              (&key (raw-name "")
+               &aux (address (cadr (cl-ppcre:split " " raw-name)))
+                    (full-name (format nil "~{~A~^ ~}" (cddr (cl-ppcre:split " " raw-name)))))))
+  address
+  (full-name (progn
+                 (format nil "~{~A~^ ~}" name))))
+(defun bluetooth-connect-device (device)
+  (progn
+    (bluetooth-turn-on)
+    (cond ((bluetooth-device-p device) ;; it is a bluetooth-device structure
+           (bluetooth-message-command "connect"
+                                      (bluetooth-device-address device)))
+          ((stringp device)            ;; assume it is a MAC address
+           (bluetooth-message-command "connect" device))
+          (t (message (format nil "Cannot work with device ~a" device))))))
+(defcommand bluetooth-connect () ()
+  (sb-thread:make-thread
+   (lambda ()
+    (let* ((devices (bluetooth-get-devices))
+           (choice  (cadr (stumpwm:select-from-menu
+                           (stumpwm:current-screen)
+                           (mapcar (lambda (device)
+                                     `(,(bluetooth-device-full-name device) ,device))
+                                   devices)))))
+      (bluetooth-connect-device choice)))))
+
+;===slink
+;...errors
+;(defvar *slynk-port* slynk::default-server-port)
+;(defparameter *stumpwm-slynk-session* nil)
+
+;(defcommand start-slynk (&optional (port *slynk-port*)) ()
+;  (handler-case
+;      (defparameter *stumpwm-slynk-session*
+;        (slynk:create-server :dont-close t :port port))
+;    (error (c)
+;           (format *error-output* "Error starting slynk: ~a~%" c)
+;           )))
+
+;(defcommand restart-slynk () ()
+;  "Restart Slynk and reload source.
+;This is needed if Sly updates while StumpWM is running"
+;  (stop-slynk)
+;  (start-slynk))
+
+;(defcommand stop-slynk () ()
+;  "Restart Slynk and reload source.
+;  This is needed if Sly updates while StumpWM is running"
+;  (slynk:stop-server *slynk-port*))
+
+;(defcommand connect-to-sly () ()
+;  (unless *stumpwm-slynk-session*
+;    (start-slynk))
+;  (exec-el (sly-connect "localhost" *slynk-port*))
+;  (emacs))
+
+;(define-stumpwm-type :dunstctl (input prompt)
+;  (completing-read (current-screen) prompt '("context" "action" "close" "history")))
+
+;(defcommand dunst () ()
+;  (run-shell-command "dunstctl context"))
+
+
+;==deploy
+
+;===startup
+(defcommand deploy-startup () ()
+  (run-shell-command "picom -b")
+  (run-shell-command "emacs --daemon"))
+
+;===remote drives
+(defcommand deploy-remotes-1up () ()
+  (run-shell-command "rclone mount db:1 ~/db/1 --vfs-cache-mode full &"))
+(defcommand deploy-remotes-1dn () ()
+  (run-shell-command "fusermount -u ~/db/1 && echo unmounted"))
+;&&&takes path arg for up
+;&&&makes list at db* and takes all down
+
+;===presentation env &&&
+
+;===coding env &&&
+;emacsclient -c -a emacs -e "(dired \"$*\")"; open anything in emacs in dired
+
+;===habit tracker
+(declaim (type fixnum *reps*))
+(defvar *reps* 0
+  "Variable for keeping track of reps")
+
+(defcommand add-reps (reps) ((:number "Enter reps: "))
+  (declare (type fixnum reps))
+  (when reps
+    (setq *reps* (+ *reps* reps))))
+
+(defcommand reset-reps () ()
+  (setq *reps* 0))
+
+(defvar habit-tracker
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "a") "add-reps")
+    (define-key m (kbd "r") "reset-reps")
+    m))
+
+;=== Set up for recording
+(defun setup-recording-environment (group-name)
+  "Sets up a recording environment and returns a function to start the
+necessary programs for recording a new YouTube video"
+  (let* ((obs-window (find-matching-windows
+                      (list :class "obs")
+                      t t))
+         (clip-browser-name "Recording-Clips")
+         (clip-directory "~/Videos/clips/")
+         (clip-browser-window (find-matching-windows
+                               (list :title clip-browser-name)
+                               t t)))
+    ;; Create the recording group
+    (define-frame-preference group-name
+      (0 t t :class "obs")
+      (0 t t :title "Recording-Clips"))
+    (gnew group-name)
+
+    ;; Setup obs
+    (unless obs-window
+      (run-shell-command "obs"))
+
+    ;; Create a window for previewing and managing clips
+    (unless clip-browser-window
+      (run-shell-command
+       (format nil
+               "emacsclient -c -F  '((name . \"~a\"))' -e '(dired \"~a\")'"
+               clip-browser-name
+               clip-directory))
+      ;; Set recording font
+      (exec-el (fontaine-set-preset 'large)))))
+
+(defcommand deploy-recording () ()
+  (setup-recording-environment "recording"))
+
+
+;==frames
+
+
+(defun floatingp (window)
+  "Return T if WINDOW is floating and NIL otherwise"
+  (typep window 'stumpwm::float-window))
+
+(defun always-on-top-off (window) ()
+  "Stop the given WINDOW from always being on top of other windows"
+  (let ((ontop-wins (group-on-top-windows (current-group))))
+         (setf (group-on-top-windows (current-group))
+	       (remove window ontop-wins))))
+
+(defun always-on-top-on (window) () "Set the given WINDOW to always be
+       on top of other windows" (let ((w window)
+             (windows (the list (group-on-top-windows
+         (current-group))))) (when w
+           (unless (find w windows) (push window (group-on-top-windows
+             (current-group)))))))
+
+(defmacro with-on-top (win &body body) "Make sure WIN is on the top
+  level while the body is running and
+restore it's always-on-top state afterwords" (let ((cw (gensym))
+        (ontop (gensym)))
+    `(let* ((,cw ,win) (,ontop (find ,cw (group-on-top-windows
+            (current-group)))))
+       (unwind-protect (progn (unless ,ontop (always-on-top-on ,cw))
+                  ,@body))
+       (unless ,ontop (always-on-top-off ,cw))))) (defun slop-get-pos ()
+  (mapcar #'parse-integer (ppcre:split "[^0-9]" (run-shell-command
+                                                 "slop -f \"%x %y %w
+                                                 %h\"" t))))
+
+(defun slop () "Slop the current window or just float if slop cli not
+  present." (when (executable-p "slop")
+    (let ((win (current-window)) (group (current-group)) (pos
+          (slop-get-pos)))
+      (stumpwm::float-window win group)
+      (stumpwm::float-window-move-resize win
+                                         :x (nth 0 pos) y (nth 1 pos)
+                                         :width (nth 2 pos) height (nth
+                                         :3 pos))
+      (always-on-top-on win))))
+
+(defun window-menu-format (w) (list (format-expand *window-formatters*
+  *window-format* w) w))
+
+(defun window-from-menu (windows) (when windows
+    (second (select-from-menu
+             (group-screen (window-group (car windows))) (mapcar
+             'window-menu-format windows) "Select Window: "))))
+
+(defun windows-in-group (group) (group-windows (find group (the list
+  (screen-groups (current-screen)))
+                       :key 'group-name :test 'equal)))
+
+(defun maybe-beckon () (if (current-window) (beckon:beckon)
+    nil))
+
+(defcommand hsplit-and-focus () ()
+  "Create a new frame on the right and focus it."
+  (hsplit)
+  (move-focus :right))
+
+(defcommand vsplit-and-focus () ()
+  "Create a new frame below and move focus to it."
+  (vsplit)
+  (move-focus :down))
+
+(defcommand remove-lose-focus () ()
+  "Remove the window without feaking out because of :sloppy *mouse-focus-policy*"
+  (with-focus-lost (remove-split)))
+
+(defcommand fullscreen-and-raise () ()
+  "Fullscreen window and make sure it's on top of all other windows"
+  (with-on-top (stumpwm:current-window) (fullscreen)))
+
+;move to .hidden group
+(defcommand move-to-hidden () () (stumpwm:run-commands "gmove .hidden"))
+(defcommand pull-from-hidden () () (let* ((windows (windows-in-group ".hidden"))
+         (window (window-from-menu windows))) (when window
+      (move-window-to-group window (current-group))
+      (stumpwm::pull-window window))))
+
+(defcommand toggle-slop-this () () (let ((win (current-window))
+        (group (current-group)))
+    (cond ((floatingp win)
+      (always-on-top-off win) (stumpwm::unfloat-window win group))
+     (t (slop)))))
+
+(defcommand hsplit-and-focus () () "create a new frame on the right and
+  focus it." (with-focus-lost
+   (hsplit) (move-focus :right)))
+
+(defcommand vsplit-and-focus () () "create a new frame below and focus
+  it." (with-focus-lost
+   (vsplit) (move-focus :down)))
+
+(defcommand delete-window-and-frame () ()
+  "Delete the current frame with its window."
+  (delete-window)
+  (remove-split))
+
+(define-minor-mode my/tile-mode () () (:interactive t) (:scope
+  :dynamic-group) (:top-map '(("s-v" . "exchange-with-master")
+              ("s-=" . "change-default-split-ratio 1/2")))
+  (:lighter-make-clickable nil) (:lighter "MY/TILE"))
+
+(defun switched-emacs-window (dir) (declare (type Keyword dir) (optimize
+            (speed 3) (safety 1)))
+
+  (if (is-emacs-p (current-window))
+      ;; There is not emacs window in that direction
+      (not (length= (emacs-winmove (string-downcase (string dir))) 1))
+    nil))
+
+;;============
+;=basic-settings
+;;============
+
+(setq swm-ssh:*swm-ssh-default-term* "tilix")
+(setf *mpd-volume-step* 2)
+(setf *which-key-format* (concat *key-seq-color* "*~5a^n ~a"))
+
+;==appearance
+; set desktop background color, as fallback
+(setf (xlib:window-background (screen-root (current-screen))) #x47456d)
+; set wallpaper
+(run-shell-command "feh --bg-fill ~/.wallpaper.jpg")
+
+;==mouse
+(setf *mouse-focus-policy* :click);cursor focus on click
+;(setf *mouse-focus-policy* :sloppy); Focus Follow Mouse
+; set cursor
+;(run-shell-command "xsetroot -cursor_name left_ptr")
+
+;==completion
+;; Remember commands and offers orderless completion
+;; https://github.com/landakram/stumpwm-prescient
+(setf *input-refine-candidates-fn* 'stumpwm-prescient:refine-input)
+
+; (setf *input-completion-show-empty* nil); Show all completions from start
+(setf *input-completion-show-empty* t)
+
+; keep completions open even when one is selected
+; (setf *input-completion-style* (make-input-completion-style-unambiguous))
+
+;;============
+;=mode-line
+;;============
+
+(setf *mode-line-timeout* 2)
+
+(setf *mode-line-border-width* 1)
+
+(setf *time-modeline-string* "%a, %b %d %I:%M%p"); "%a, %b %d %I:%M%p", "%F %H:%M"
+(setf *group-format* "%t")
+(setf *window-format* "%n: %10t")
+
+(setf cpu::*cpu-modeline-fmt*        "%c"
+      cpu::*cpu-usage-modeline-fmt*  "^f2^f0^[~A~2D%^]"
+      mem::*mem-modeline-fmt*        "%a%p"
+      ;mpd:*mpd-modeline-fmt*         "%a - %t"
+      ;mpd:*mpd-status-fmt*           "%a - %t"
+      *hidden-window-color*          "^**"
+      *mode-line-highlight-template* "«~A»")
+
+
+;List of formatters for the modeline.
+(defvar *mode-line-formatter-list*
+  '(
+    ("%g") ;list of groups
+    ("%w") ;list of windows in current group and head
+    ("^>") ;pad to align to right
+    ("%M") ; ram usage
+    ))
+
+
+
+    ;("command" . t) ; example of command to execute
+    ;("docker-running" . t) ;number of docker containers running
+    ;("mu-unread" . t) ;number of unread emails
+    ;("%m") ;current mpd song
+    ;("%v") ;list of windows
+    ;("%C") ; cpu usage ;errors
+    ;("%B") ; battery status
+    ;("%d") ; display date
+
+
+(defun generate-modeline (elements &optional not-invertedp rightp)
+  "Generate a modeline for StumpWM.
+ELEMENTS should be a list of `cons'es which `car' is the modeline
+formatter or the shell command to run, and their `cdr' is either nil
+when the `car' is a formatter and t when it is a shell command."
+  (when elements
+    (cons (format nil
+                  " ^[~A^]^(:bg \"~A\") "
+                  (format nil "^(:fg \"~A\")^(:bg \"~A\")^f1~A^f0"
+                          (if (xor not-invertedp rightp)
+			    *my-modeline-text-1*
+			    *my-modeline-text-2*)
+                          (if (xor not-invertedp rightp)
+			    *my-modeline-text-2*
+			    *my-modeline-text-1*)
+                          (if rightp "" ""))
+                  (if not-invertedp
+		    *my-modeline-text-2*
+		    *my-modeline-text-1*))
+          (let* ((current-element (car elements))
+                 (formatter       (car current-element))
+                 (commandp        (cdr current-element)))
+            (cons (if commandp `(:eval (run-shell-command ,formatter t))
+                    (format nil "~A" formatter))
+                  (generate-modeline (cdr elements)
+                                     (not not-invertedp)
+                                     (if (string= "^>" (caar elements))
+				       t
+				       rightp)))))))
+
+
+(defcommand reload-modeline () ()
+  (sb-thread:make-thread
+   (lambda ()
+     (setf *screen-mode-line-format*
+           (cdr (generate-modeline *mode-line-formatter-list*))))))
+(reload-modeline)
+
+
+(defun enable-mode-line-everywhere ()
+  (loop for screen in *screen-list* do
+        (loop for head in (screen-heads screen) do
+              (enable-mode-line screen head t))))
+(enable-mode-line-everywhere)
+
+;;============
+;=groups
+;;============
+
+(setf *run-or-raise-all-groups* nil); Don't jump between groups when switching apps
+
+;==initial-groups
+(when *initializing*
+  (grename "[I]") ; manual tiling group
+  (gnewbg "[II]")
+  (gnewbg "[III]")
+  (gnewbg "[IV]")
+  ;(gnewbg-dynamic "dynamic"); dynamic tiling group
+  ;(gnewbg-float "float"); floating tiling group
+  (gnewbg "hidden")) ; hidden group
+
+;...invokable groups
+
+;;============
+;=frames
+;;============
+
+;==frame-params
+(setf *dynamic-group-master-split-ratio* 1/3) ;for dynamic tiling group
+(setf *window-format* "%m%s%50t") ; "%n:%t","%m%n%s%20t","%m%s%50t"
+(setf *resize-increment* 25)
+
+(set-msg-border-width 3)
+(setf *timeout-wait* 5 ; messages display time
+      *ignore-wm-inc-hints t ; ignore window hints
+      *maxsize-border-width* 5
+      *normal-border-width* 2
+      *window-border-style* :thin
+
+      *input-window-gravity* :top
+
+      *message-window-gravity* :center
+      *message-window-padding* 10
+      *message-window-input-gravity* :left
+      *message-window-y-padding* 10
+
+      *float-window-modifier* :SUPER ; super key to move floating windows
+      *float-window-title-height* 15
+      *float-window-border* 1
+      *transient-border-width* 2
+      *float-window-border* 1
+      *float-window-title-height* 1)
+
+;==gaps
+(setf swm-gaps:*head-gaps-size*  0 ; around modeline
+      swm-gaps:*inner-gaps-size* 5 ; around frames
+      swm-gaps:*outer-gaps-size* 30); around screen
+(when *initializing*
+  (swm-gaps:toggle-gaps))
+
+;==define-window-placement-policy
+(clear-window-placement-rules) ;prevent bugs
+
+;; Last rule to match takes precedence!
+;; TIP: if the argument to :title or :role begins with an ellipsis, a substring
+;; match is performed.
+;; TIP: if the :create flag is set then a missing group will be created and
+;; restored from *data-dir*/create file.
+;; TIP: if the :restore flag is set then group dump is restored even for an
+;; existing group using *data-dir*/restore file.
+
+(define-frame-preference "Default"
+  ;; frame raise lock (lock AND raise == jumpto)
+  (0 t nil :class "Konqueror" :role "...konqueror-mainwindow")
+  (1 t nil :class "XTerm"))
+
+(define-frame-preference "Ardour"
+  (0 t   t   :instance "ardour_editor" :type :normal)
+  (0 t   t   :title "Ardour - Session Control")
+  (0 nil nil :class "XTerm")
+  (1 t   nil :type :normal)
+  (1 t   t   :instance "ardour_mixer")
+  (2 t   t   :instance "jvmetro")
+  (1 t   t   :instance "qjackctl")
+  (3 t   t   :instance "qjackctl" :role "qjackctlMainForm"))
+
+(define-frame-preference "Shareland"
+  (0 t   nil :class "XTerm")
+  (1 nil t   :class "aMule"))
+
+(define-frame-preference "Emacs"
+  (1 t t :restore "emacs-editing-dump" :title "...xdvi")
+  (0 t t :create "emacs-dump" :class "Emacs"))
+
+
+;;============
+;=key-bindings
+;;============
+;&&& notes on order of definitions, mostly the nested groups then root map then top map last
+;topmap always available
+;prefix-key activates root-map and contextual maps
+;=============================================================
+
+(set-prefix-key (kbd "s-SPC")) ; set leader to super-space
+(when *initializing* (which-key-mode)) ;shows keys available
+
+;==clear default bindings
+;(setf *top-map* (make-sparse-keymap)) ; &&& activating this breaks my keymaps
+
+; keymaps active after prefix key
+(setf *root-map* (make-sparse-keymap))
+(setf stumpwm::*group-root-map* (make-sparse-keymap))
+(setf stumpwm::*tile-root-map* (make-sparse-keymap))
+(setf stumpwm::*tile-group-root-map* (make-sparse-keymap))
+;(setf stumpwm::*float-group-root-map* (make-sparse-keymap))
+;(setf stumpwm::*dynamic-group-root-map* (make-sparse-keymap))
+;(setf stumpwm::*group-top-map* (make-sparse-keymap))
+;(setf stumpwm::*tile-top-map* (make-sparse-keymap))
+;(setf stumpwm::*float-group-top-map* (make-sparse-keymap))
+;(setf stumpwm::*tile-group-top-map* (make-sparse-keymap))
+;(setf stumpwm::*dynamic-group-top-map* (make-sparse-keymap))
+
+;==a-applications
+
+(defvar applications=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "b") "ror-browser")
+    (define-key m (kbd "t") "term")
+    (define-key m (kbd "e") "emacs-client")
+    (define-key m (kbd "d") "echo-date") ; Display the date and time.
+    m))
+(define-key *root-map* (kbd "a") 'applications=>>)
+
+;==s-stump and system
+
+(defvar wireless=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "w") "nm-list-wireless-networks")
+    (define-key m (kbd "c") "bluetooth-connect")
+    (define-key m (kbd "o") "bluetooth-turn-on")
+    (define-key m (kbd "O") "bluetooth-turn-off")
+    m))
+
+(defvar mpd=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "h") "mpd-prev")
+    (define-key m (kbd "j") "mpd-volume-down")
+    (define-key m (kbd "k") "mpd-volume-up")
+    (define-key m (kbd "l") "mpd-next")
+    (define-key m (kbd "a") "mpd-browse-artists")
+    (define-key m (kbd "A") "mpd-browse-albums")
+    (define-key m (kbd "g") "mpd-browse-genres")
+    (define-key m (kbd "p") "mpd-browse-playlist")
+    (define-key m (kbd "t") "mpd-browse-tracks")
+    (define-key m (kbd "f") "mpd-add-file")
+    (define-key m (kbd "C-a") "mpd-search-and-add-artist")
+    (define-key m (kbd "C-A") "mpd-search-and-add-album")
+    (define-key m (kbd "C-f") "mpd-search-and-add-file")
+    (define-key m (kbd "C-g") "mpd-search-and-add-genre")
+    (define-key m (kbd "C-t") "mpd-search-and-add-title")
+    m))
+
+(defvar media-adj=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "c") "exec xbacklight -perceived -dec 2")
+    (define-key m (kbd "r") "exec xbacklight -perceived -inc 2")
+    (define-key m (kbd "t") "exec amixer -q set Master 2%- unmute")
+    (define-key m (kbd "s") "exec amixer -q set Master 2%+ unmute")
+    (define-key m (kbd "m") "exec amixer -q set Master 1+ toggle")
+    m))
+
+(defvar media=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "a") 'media-adj=>>)
+    (define-key m (kbd "m") 'mpd=>>)
+    (define-key m (kbd "Left") "exec playerctl previous")
+    (define-key m (kbd "Right") "exec playerctl next")
+    (define-key m (kbd "c") "mpd-clear")
+    (define-key m (kbd "p") "exec playerctl play-pause")
+    (define-key m (kbd "s") "exec playerctl stop")
+    (define-key m (kbd "u") "mpd-update")
+    (define-key m (kbd "n") "exec kitty ncmpcpp -q")
+    (define-key m (kbd "v") "exec kitty ncmpcpp -qs visualizer")
+    m))
+
+(defvar screenshots=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "d") "exec flameshot gui -d 3000")
+    (define-key m (kbd "Print") "stump-screenshot")
+    (define-key m (kbd "s") "exec flameshot full")
+    (define-key m (kbd "S") "exec flameshot gui")
+    m))
+
+(defvar system=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "SPC") "colon") ;list all executable commands
+    (define-key m (kbd ":") "eval") ;evaluate lisp expression
+    (define-key m (kbd "e") "eval-line") ; Evaluate the s-expression and display the result(s).
+    (define-key m (kbd "!") "run-shell-command") ;evaluate bash
+    (define-key m (kbd "w") 'wireless=>>)
+    (define-key m (kbd "m") 'media=>>)
+    (define-key m (kbd "s") 'screenshots=>>)
+    (define-key m (kbd "u") "winner-undo")
+    (define-key m (kbd "C-r") "winner-redo")
+    (define-key m (kbd "M") "lastmsg") ; Display the last message. If the previous command was lastmsg, then continue cycling back through the message history.
+    (define-key m (kbd "b") "banish") ;Warp the mouse the lower right corner of the current head.
+    (define-key m (kbd "B") "beckon")
+    (define-key m (kbd "g") "toggle-gaps")
+    (define-key m (kbd "w") "which-key-mode") ;Toggle which-key-mode
+    (define-key m (kbd "r") "loadrc") ; reload config
+    (define-key m (kbd "R") "reload") ; Reload StumpWM using asdf.
+    (define-key m (kbd "C-r") "restart-soft") ;Soft restart StumpWM. The lisp process isn’t restarted. Instead, control jumps to the very beginning of the stumpwm program. This differs from RESTART, which restarts the unix process. Since the process isn’t restarted, existing customizations remain after the restart.
+    (define-key m (kbd "C-R") "restart-hard") ;Restart stumpwm. This is handy if a new stumpwm executable has been made and you wish to replace the existing process with it. Any run-time customizations will be lost after the restart.
+    ;(define-key m (kbd "l") "mode-line") ; modeline on/off  for current head
+    ;(define-key m (kbd "a") "command-mode") ;Command mode allows you to type StumpWM commands without needing the <C-t> prefix. Keys not bound in StumpWM will still get sent to the current window. To exit command mode, type <C-g>.
+    ;(define-key m (kbd "a") "keyboard-quit") ;This way you can exit from command mode. Also aliased as abort.
+    ;(define-key m (kbd "a") "meta") ;Send a fake key to the current window. key is a typical StumpWM key, like C-M-o.
+    ;(define-key m (kbd "a") "window-send-string") ;Send the string of characters to the current window as if they’d been typed.
+    ;(define-key m (kbd "l") "change-default-layout")
+    m))
+(define-key *root-map* (kbd "s") 'system=>>)
+
+;==d-deploy
+(defvar deploy=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "s") "deploy-startup")
+    (define-key m (kbd "r") "deploy-remotes-1up")
+    (define-key m (kbd "R") "deploy-remotes-1dn")
+    ; &&& anydesk
+    ; &&& coding environment, c
+    ; &&& presentation environment, p
+    ;(define-key m (kbd "t") 'habit-tracker)
+    ;(define-key m (kbd "R") 'deploy-recording) ; set up for recording
+    m))
+(define-key *root-map* (kbd "d") 'deploy=>>)
+
+;==f-frames
+
+(defvar focus=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "h") "move-focus left")
+    (define-key m (kbd "j") "move-focus down")
+    (define-key m (kbd "k") "move-focus up")
+    (define-key m (kbd "l") "move-focus right")
+    (define-key m (kbd "o") "fother") ;Jump to the last frame that had focus.
+    (define-key m (kbd "s") "sibling") ;Jump to the frame’s sibling. If a frame is split into two frames, these two frames are siblings.
+    (define-key m (kbd "c") "curframe") ;Display a window indicating which frame is focused.
+    m))
+
+(defvar move=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "H") "move-window left")
+    (define-key m (kbd "J") "move-window down")
+    (define-key m (kbd "K") "move-window up")
+    (define-key m (kbd "L") "move-window right")
+    (define-key m (kbd "C-h") "exchange-direction left")
+    (define-key m (kbd "C-h") "exchange-direction left")
+    (define-key m (kbd "C-j") "exchange-direction down")
+    (define-key m (kbd "C-k") "exchange-direction up")
+    (define-key m (kbd "C-l") "exchange-direction right")
+    m))
+
+(defvar split=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "/") "hsplit-and-focus")
+    (define-key m (kbd "-") "vsplit-and-focus")
+    (define-key m (kbd "h") "hsplit-equally")
+    (define-key m (kbd "v") "vsplit-equally")
+    (define-key m (kbd "H") "hsplit 1/3") ;Split the current frame into 2 side-by-side frames.
+    (define-key m (kbd "V") "vsplit 1/3") ;Split the current frame into 2 frames, one on top of the other.
+    (define-key m (kbd "C-h") "hsplit-uniformly") ;Split current frame in n columns of equal size.
+    (define-key m (kbd "C-v") "vsplit-uniformly") ;Split current frame in n rows of equal size.
+    (define-key m (kbd "=") "balance-frames") ;Make frames the same height or width in the current frame’s subtree.
+    (define-key m (kbd "r") "iresize") ; k Shrink the frame vertically. j Expand the frame vertically. l Expand the frame horizontally. h Shrink the frame horizontally. ESC Abort the interactive resize. RET Select the highlighted option.
+    m))
+
+(defvar cycle=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "]") "fnext") ;Cycle through the frame tree to the next frame.
+    (define-key m (kbd "[") "fprev") ;Cycle through the frame tree to the previous frame.
+    m))
+
+(defvar remove=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "R") "remove-split") ;Remove the specified frame in the specified group (defaults to current group, current frame). Windows in the frame are migrated to the frame taking up its space.
+    (define-key m (kbd "c") "fclear") ;&&&DEL? Clear the current frame.
+    (define-key m (kbd "o") "only") ;Delete all the frames but the current one and grow it to take up the entire head.
+    m))
+
+(define-interactive-keymap f-interactive<=>
+		(:exit-on ((kbd "ESC")))
+  ((kbd "h") "move-focus left")
+  ((kbd "j") "move-focus down")
+  ((kbd "k") "move-focus up")
+  ((kbd "l") "move-focus right")
+  ((kbd "H") "move-window left")
+  ((kbd "J") "move-window down")
+  ((kbd "K") "move-window up")
+  ((kbd "L") "move-window right")
+  ((kbd "/") "hsplit-and-focus")
+  ((kbd "-") "vsplit-and-focus")
+  ((kbd "R") "remove-split") ;Remove the specified frame in the specified group (defaults to current group, current frame). Windows in the frame are migrated to the frame taking up its space.
+  )
+
+(defvar frames=>>
+  (let ((m (make-sparse-keymap)))
+
+    (define-key m (kbd "h") "move-focus left")
+    (define-key m (kbd "j") "move-focus down")
+    (define-key m (kbd "k") "move-focus up")
+    (define-key m (kbd "l") "move-focus right")
+    (define-key m (kbd "H") "move-window left")
+    (define-key m (kbd "J") "move-window down")
+    (define-key m (kbd "K") "move-window up")
+    (define-key m (kbd "L") "move-window right")
+    (define-key m (kbd "/") "hsplit-and-focus")
+    (define-key m (kbd "-") "vsplit-and-focus")
+    (define-key m (kbd "R") "remove-split") ;Remove the specified frame in the specified group (defaults to current group, current frame). Windows in the frame are migrated to the frame taking up its space.
+    (define-key m (kbd "f") "f-interactive<=>")
+    (define-key m (kbd "o") 'focus=>>)
+    (define-key m (kbd "m") 'move=>>)
+    (define-key m (kbd "s") 'split=>>)
+    (define-key m (kbd "c") 'cycle=>>)
+    (define-key m (kbd "r") 'remove=>>)
+    (define-key m (kbd "1") "fselect 1")
+    (define-key m (kbd "2") "fselect 2")
+    (define-key m (kbd "3") "fselect 3")
+    (define-key m (kbd "4") "fselect 4")
+    (define-key m (kbd "5") "fselect 5")
+    (define-key m (kbd "6") "fselect 6")
+    (define-key m (kbd "7") "fselect 7")
+    (define-key m (kbd "8") "fselect 8")
+    (define-key m (kbd "9") "fselect 9")
+    (define-key m (kbd "0") "fselect") ;Display a number in the corner of each frame and let the user to select a frame by number or click. If frame-number is specified, just jump to that frame.
+
+    m))
+(define-key *root-map* (kbd "f") 'frames=>>)
+
+;==g-groups
+
+(defvar names=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "l") "grouplist") ;Allow the user to select a group from a list, like windowlist for groups.
+    (define-key m (kbd "g") "groups") ;Display the list of groups with their number and name. *group-format* controls the formatting. The optional argument fmt can be used to override the default group formatting.
+    (define-key m (kbd "v") "vgroups") ;Like groups but also display the windows in each group. The optional arguments gfmt and wfmt can be used to override the default group formatting and window formatting, respectively.
+    (define-key m (kbd "N") "grename") ;Rename the current group.
+    m))
+
+(defvar cycle=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "]") "gnext") ;Cycle to the next group in the group list.
+    (define-key m (kbd "[") "gprev") ;Cycle to the previous group in the group list.
+    (define-key m (kbd "o") "gother") ;Go back to the last group.
+    m))
+
+(defvar push+pull=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "}") "gnext-with-window") ;Cycle to the next group in the group list, taking the current window along.
+    (define-key m (kbd "{") "gprev-with-window") ;Cycle to the previous group in the group list, taking the current window along.
+    (define-key m (kbd "g") "gmove") ;Move the current window to the specified group.
+    (define-key m (kbd "G") "gmove-and-follow") ;Move the current window to the specified group, and switch to it.
+    (define-key m (kbd "p") "global-pull-windowlist")
+    (define-key m (kbd "m") "gmerge") ;Merge from into the current group. from is not deleted.
+    m))
+
+(defvar add+del=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "n") "gnew") ;Create a new group with the specified name. The new group becomes the current group. If name begins with a dot (“.”) the group new group will be created in the hidden state. Hidden groups have group numbers less than one and are invisible to from gprev, gnext, and, optionally, groups and vgroups commands.
+    (define-key m (kbd "N") "gnewbg") ;Create a new group but do not switch to it.
+    (define-key m (kbd "f") "gnew-float") ;Create a floating window group with the specified name and switch to it.
+    (define-key m (kbd "F") "gnewbg-float") ;Create a floating window group with the specified name, but do not switch to it.
+    (define-key m (kbd "d") "gnew-dynamic") ;Create a new dynamic group named NAME.
+    (define-key m (kbd "D") "gnewbg-dynamic") ;Create a new dynamic group named NAME in the background.
+    (define-key m (kbd "k") "gkill") ;Kill the current group. All windows in the current group are migrated to the next group.
+    (define-key m (kbd "K") "gkill-other") ;Kill other groups. All windows in other groups are migrated to the current group.
+    m))
+
+(define-interactive-keymap g-interactive<=>
+			   (:exit-on ((kbd "ESC")))
+  ((kbd "l") "grouplist") ;Allow the user to select a group from a list, like windowlist for groups.
+  ((kbd "]") "gnext") ;Cycle to the next group in the group list.
+  ((kbd "[") "gprev") ;Cycle to the previous group in the group list.
+  ((kbd "}") "gnext-with-window") ;Cycle to the next group in the group list, taking the current window along.
+  ((kbd "{") "gprev-with-window") ;Cycle to the previous group in the group list, taking the current window along.
+  )
+
+(defvar groups=>>
+  (let ((m (make-sparse-keymap)))
+
+    (define-key m (kbd "l") "grouplist") ;Allow the user to select a group from a list, like windowlist for groups.
+    (define-key m (kbd "]") "gnext") ;Cycle to the next group in the group list.
+    (define-key m (kbd "[") "gprev") ;Cycle to the previous group in the group list.
+    (define-key m (kbd "}") "gnext-with-window") ;Cycle to the next group in the group list, taking the current window along.
+    (define-key m (kbd "{") "gprev-with-window") ;Cycle to the previous group in the group list, taking the current window along.
+    (define-key m (kbd "g") "g-interactive<=>")
+
+    (define-key m (kbd "n") 'names=>>)
+    (define-key m (kbd "c") 'cycle=>>)
+    (define-key m (kbd "p") 'push+pull=>>)
+    (define-key m (kbd "a") 'add+del=>>)
+    (define-key m (kbd "1") "gselect 1")
+    (define-key m (kbd "2") "gselect 2")
+    (define-key m (kbd "3") "gselect 3")
+    (define-key m (kbd "4") "gselect 4")
+    (define-key m (kbd "5") "gselect 5")
+    (define-key m (kbd "6") "gselect 6")
+    (define-key m (kbd "7") "gselect 7")
+    (define-key m (kbd "8") "gselect 8")
+    (define-key m (kbd "9") "gselect 9")
+    (define-key m (kbd "0") "gselect")
+    m))
+(define-key *root-map* (kbd "g") 'groups=>>)
+
+;==windows
+
+(defvar properties=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "e") "echo-windows") ;Display a list of managed windows. The optional argument fmt can be used to override the default window formatting.
+    (define-key m (kbd "f") "echo-frame-windows") ;Display a list of all the windows in the current frame.
+    (define-key m (kbd "i") "info") ;Display information about the current window.
+    (define-key m (kbd "l") "list-window-properties") ;List all the properties of the current window and their values, like xprop.
+    (define-key m (kbd "s") "show-window-properties") ;Shows the properties of the current window. These properties can be used for matching windows with run-or-raise or window placement rules.
+    (define-key m (kbd "r") "renumber") ;Change the current window’s number to the specified number. If another window is using the number, then the windows swap numbers. Defaults to current group.
+    (define-key m (kbd "R") "repack-window-numbers") ;Ensure that used window numbers do not have gaps; ignore PRESERVED window numbers.
+    (define-key m (kbd "t") "title") ;Override the current window’s title.
+    m))
+
+(defvar cycle=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "]") "next-in-frame") ;Go to the next window in the current frame.
+    (define-key m (kbd "[") "prev-in-frame") ;Go to the previous window in the current frame.
+    (define-key m (kbd "}") "next") ;Go to the next window in the window list.
+    (define-key m (kbd "{") "prev") ;Go to the previous window in the window list.
+    (define-key m (kbd "o") "other-in-frame") ;Go to the last accessed window in the current frame.
+    m))
+
+(defvar focus=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "e") "expose") ;Automagically lay out all windows in a grid and let the user select one, making that window the focused window. Set the variable ‘*expose-auto-tile-fn*’ to another tiling function if a different layout is desired for tile groups. Set ‘*expose-n-max*’ to the maximum number of windows to be displayed for choosing when in a tile group.
+    (define-key m (kbd "w") "windowlist") ;Allow the user to select a window from the list of windows and focus the selected window. For information of menu bindings see Menus. The optional argument fmt can be specified to override the default window formatting. The optional argument window-list can be provided to show a custom window list (see windowlist-by-class). The default window list is the list of all window in the current group. Also note that the default window list is sorted by number and if the windows-list is provided, it is shown unsorted (as-is).
+    (define-key m (kbd "W") "windowlist-by-class") ;Allow the user to select a window from the list of windows (sorted by class) and focus the selected window. For information of menu bindings see Menus. The optional argument fmt can be specified to override the default window formatting. This is a simple wrapper around the command windowlist.
+    (define-key m (kbd "o") "other-window") ;Switch to the window last focused.
+    (define-key m (kbd "u") "next-urgent") ;Jump to the next urgent window
+    (define-key m (kbd "n") "select-window-by-number") ;Find the window with the given number and focus it in its frame.
+    (define-key m (kbd "N") "select-window-by-name") ;Switch to the first window whose name is exactly name.
+    (define-key m (kbd "s") "select-window") ;Switch to the first window that starts with query.
+    (define-key m (kbd "f") "frame-windowlist") ;Allow the user to select a window from the list of windows in the current frame and focus the selected window. The optional argument fmt can be specified to override the default window formatting.
+    m))
+
+(defvar push+pull=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "l") "pull-from-windowlist") ;Pulls a window selected from the list of windows. This allows a behavior similar to Emacs’ switch-to-buffer when selecting another window.
+    (define-key m (kbd "n") "pull-window-by-number") ;Pull window N from another frame into the current frame and focus it.
+    (define-key m (kbd "]") "pull-hidden-next") ;Pull the next hidden window into the current frame.
+    (define-key m (kbd "[") "pull-hidden-previous") ;Pull the next hidden window into the current frame.
+    (define-key m (kbd "o") "pull-hidden-other") ;Pull the last focused, hidden window into the current frame.
+    (define-key m (kbd "h") "move-to-hidden") ;from commands
+    (define-key m (kbd "H") "pull-from-hidden") ;from commands
+    m))
+
+(defvar float=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "s") "toggle-slop-this") ;from commmands &&&
+    (define-key m (kbd "F") "float-this") ;Transforms a tile-window into a float-window
+    (define-key m (kbd "f") "unfloat-this") ;Transforms a float-window into a tile-window
+    (define-key m (kbd "C-f") "flatten-floats") ;Transform all floating windows in this group to tiled windows. Puts all tiled windows in the first frame of the group.
+    m))
+
+(defvar display=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "r") "refresh") ;Refresh current window without changing its size.
+    (define-key m (kbd "R") "redisplay") ;Refresh current window by a pair of resizes, also make it occupy entire frame.
+    (define-key m (kbd "f") "fullscreen") ;Toggle the fullscreen mode of the current widnow. Use this for clients with broken (non-NETWM) fullscreen implementations, such as any program using SDL.
+    (define-key m (kbd "F") "unmaximize") ;Use the size the program requested for current window (if any) instead of maximizing it.
+    (define-key m (kbd "t") "toggle-always-on-top") ;Toggle whether the current window always appears over other windows. The order windows are added to this list determines priority.
+    (define-key m (kbd "s") "toggle-always-show") ;Toggle whether the current window is shown in all groups.
+    m))
+
+(defvar delete=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "r") "remove-lose-focus") ;from commands "Remove the window without feaking out because of :sloppy *mouse-focus-policy*"
+    (define-key m (kbd "d") "delete-window-and-frame") ; from commands,"Delete the current frame with its window."
+    (define-key m (kbd "D") "delete-window") ;Delete a window. By default delete the current window. This is a request sent to the window. The window’s client may decide not to grant the request or may not be able to if it is unresponsive.
+    (define-key m (kbd "k") "kill-window") ;Tell X to disconnect the client that owns the specified window. Default to the current window. if delete-window didn’t work, try this.
+    (define-key m (kbd "K") "kill-windows-current-group") ;Kill all windows in the current group.
+    (define-key m (kbd "C-k") "kill-windows-other") ;Kill all windows in current group except the current-window
+    m))
+
+(define-interactive-keymap w-interactive<=>
+			   (:exit-on ((kbd "ESC")))
+  ((kbd "]") "next-in-frame") ;Go to the next window in the current frame.
+  ((kbd "[") "prev-in-frame") ;Go to the previous window in the current frame.
+  ((kbd "}") "next") ;Go to the next window in the window list.
+  ((kbd "{") "prev") ;Go to the previous window in the window list.
+  ((kbd "h") "move-to-hidden") ;from commands
+  ((kbd "H") "pull-from-hidden") ;from commands
+  ((kbd "l") "pull-from-windowlist") ;Pulls a window selected from the list of windows. This allows a behavior similar to Emacs’ switch-to-buffer when selecting another window.
+  )
+
+(defvar windows=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "]") "next-in-frame") ;Go to the next window in the current frame.
+    (define-key m (kbd "[") "prev-in-frame") ;Go to the previous window in the current frame.
+    (define-key m (kbd "}") "next") ;Go to the next window in the window list.
+    (define-key m (kbd "{") "prev") ;Go to the previous window in the window list.
+    (define-key m (kbd "h") "move-to-hidden") ;from commands
+    (define-key m (kbd "H") "pull-from-hidden") ;from commands
+    (define-key m (kbd "l") "pull-from-windowlist") ;Pulls a window selected from the list of windows. This allows a behavior similar to Emacs’ switch-to-buffer when selecting another window.
+    (define-key m (kbd "w") 'w-interactive=>>) ;the key repeat interactive mode of the items which are before it
+    (define-key m (kbd "P") 'properties=>>)
+    (define-key m (kbd "c") 'cycle=>>)
+    (define-key m (kbd "f") 'focus=>>)
+    (define-key m (kbd "p") 'push+pull=>>)
+    (define-key m (kbd "F") 'float=>>)
+    (define-key m (kbd "D") 'display=>>)
+    (define-key m (kbd "d") 'delete=>>)
+    m))
+(define-key *root-map* (kbd "w") 'windows=>>)
+
+;==mark
+(defvar mark=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "m") "mark") ;Toggle the current window’s mark.A marked window has a # beside it in the window list.
+    (define-key m (kbd "c") "clear-window-marks") ;Clear all marks in the current group.
+    (define-key m (kbd "p") "pull-marked") ;Pull all marked windows into the current frame and clear the marks.
+    (define-key m (kbd "a") "gmove-marked") ;move the marked windows to the specified group.
+    m))
+(define-key *root-map* (kbd "m") 'mark=>>)
+
+;==help
+(defvar help=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "c") "commands") ;List all available commands.
+    (define-key m (kbd "C") "describe-command") ;Print the online help associated with the specified command.
+    (define-key m (kbd "k") "describe-key") ;Either interactively type the key sequence or supply it as text. This command prints the command bound to the specified key sequence.
+    (define-key m (kbd "v") "describe-variable") ;Print the online help associated with the specified variable.
+    (define-key m (kbd "f") "describe-function") ;Print the online help associated with the specified function.
+    (define-key m (kbd "w") "where-is") ;Print the key sequences bound to the specified command.
+    (define-key m (kbd "m") "modifiers") ;List the modifiers stumpwm recognizes and what MOD-X it thinks they’re on.
+    m))
+(define-key *root-map* (kbd "h") 'help=>>)
+
+;==q-quit
+(defvar quit=>>
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "q") "end-session")
+    (define-key m (kbd "Q") "quit-confirm")
+    (define-key m (kbd "c") "quit") ;Quit StumpWM.
+    (define-key m (kbd "L") "logout")
+    (define-key m (kbd "s") "suspend-computer")
+    (define-key m (kbd "S") "shutdown-computer")
+    (define-key m (kbd "C-r") "restart-computer")
+    ;(define-key m (kbd "l") "exec xlock") ;&&&lock screens
+    m))
+(define-key *root-map* (kbd "q") 'quit=>>)
+
+;==root map available after leader
+(define-key *root-map* (kbd "SPC") "colon") ;list all executable commands
+(define-key *root-map* (kbd ":") "eval") ;evaluate lisp expression
+(define-key *root-map* (kbd "!") "run-shell-command") ;evaluate lisp expression
+
+;===============================================================================
