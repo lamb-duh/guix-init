@@ -5,9 +5,9 @@ This is a guix full system install speedrun. From standard guix iso, install pur
 
 # boot from USB
        reboot with standard guixSD iso flashed to stick
-       at boot: [F12] 
-       choose usb
-       at blue language choice screen: [ctl][alt][fn][F3] to TTY
+       at boot: [F12] to one time boot menu
+       choose usb, uefi, secure boot off, (dont legacy boot, it ends badly)
+       at blue language choice screen: [ctl][alt][F3] to TTY
 
 # setup eth connection
        ifconfig -a #maybe eno1 or enp0s25
@@ -16,7 +16,7 @@ This is a guix full system install speedrun. From standard guix iso, install pur
        ping -c 3 gnu.org
 
 # clone init files
-       guix install git
+       guix install git vim screen
        cd ~
        git config --global http.sslVerify false
        git clone "https://github.com/lamb-duh/guix-init"
